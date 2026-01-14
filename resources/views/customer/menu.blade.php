@@ -1,21 +1,22 @@
 @extends('layouts.app')
 @section('back_url', route('tables.index'))
-@section('page_title', 'Pilih Menu')
+@section('page_title', 'Pilih Menu - Sijeuni')
 
 @section('content')
-<div class="menu-page">
+<link rel="stylesheet" href="{{ asset('css/menu.css') }}">
 
-    {{-- Sidebar kategori --}}
+<div class="menu-page">
     <aside class="menu-sidebar">
         @foreach($categories as $key => $label)
             <a class="side-item {{ $active === $key ? 'active' : '' }}" href="{{ route('menu.index', $key) }}">
-                <div class="side-icon">🍽️</div>
+                <div class="side-icon">
+                    @if($key==='makanan') 🍽 @elseif($key==='minuman') 🍹 @else 🍨 @endif
+                </div>
                 <div class="side-text">{{ strtoupper($label) }}</div>
             </a>
         @endforeach
     </aside>
 
-    {{-- Konten --}}
     <main class="menu-content">
         <div class="menu-header">
             <h2>{{ $categories[$active] }} Populer</h2>
@@ -31,7 +32,7 @@
 
                     <div class="menu-body">
                         <div class="menu-title">
-                            <span>{{ $it['name'] }}</span>
+                            <span class="name">{{ $it['name'] }}</span>
                             <span class="menu-price">Rp {{ number_format($it['price'],0,',','.') }}</span>
                         </div>
 
@@ -45,7 +46,7 @@
                             <input class="menu-note" name="note" placeholder="Contoh: jangan pedas / extra ayam">
 
                             <div class="menu-actions">
-                                <div class="qty-box" data-id="{{ $it['id'] }}">
+                                <div class="qty-box">
                                     <button type="button" class="qty-btn minus">–</button>
                                     <input type="number" class="qty-input" name="qty" value="1" min="1" max="99">
                                     <button type="button" class="qty-btn plus">+</button>
@@ -59,7 +60,6 @@
             @endforeach
         </div>
 
-        {{-- Bottom bar --}}
         <a class="cart-bar" href="{{ route('cart.show') }}">
             <div class="cart-left">
                 <div class="cart-icon">🛒</div>
@@ -74,7 +74,6 @@
             </div>
         </a>
     </main>
-
 </div>
 
 <script>

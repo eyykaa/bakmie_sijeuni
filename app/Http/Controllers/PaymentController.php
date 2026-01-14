@@ -2,141 +2,185 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
-use App\Models\OrderItem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
 {
-    // Halaman pilih metode pembayaran (ambil total dari cart session)
-    public function show(Request $request)
+    // =========================
+    // PILIH METODE PEMBAYARAN
+    // =========================
+    public function show()
     {
-        $cart = $request->session()->get('cart', []); // pastikan cart kamu memang di session('cart')
-        $subtotal = 0;
+        $cart = session('cart', []);
+        if (empty($cart)) return redirect()->route('menu.index');
 
-        foreach ($cart as $item) {
-            $subtotal += ((int)$item['price']) * ((int)$item['qty']);
-        }
+        [$subtotal, $tax, $total] = $this->calcTotals($cart);
 
-        $tax = (int) round($subtotal * 0.10);
-        $total = $subtotal + $tax;
-
-        // default selected
-        $selected = $request->session()->get('payment_method', 'transfer');
-
-        return view('customer.payment', compact('total', 'subtotal', 'tax', 'selected'));
+        $selected = session('payment_method', 'transfer'); // transfer | cash
+        return view('customer.payment', compact('subtotal','tax','total','selected'));
     }
 
-    // Klik "Lanjutkan Pembayaran" -> buat order + items, lalu redirect sesuai metode
     public function store(Request $request)
     {
-        $request->validate([
-            'metode' => 'required|in:transfer,cash'
+        $method = $request->input('method', 'transfer');
+        if (!in_array($method, ['transfer','cash'])) $method = 'transfer';
+
+        session(['payment_method' => $method]);
+        return redirect()->route('pembayaran.show');
+    }
+
+    public function lanjut()
+    {
+        $method = session('payment_method', 'transfer');
+        return $method === 'cash'
+            ? redirect()->route('pembayaran.cash')
+            : redirect()->route('pembayaran.transfer');
+    }
+
+    // =========================
+    // TRANSFER PAGE
+    // =========================
+    public function transfer()
+{
+    $cart = session('cart', []);
+    if (empty($cart)) return redirect()->route('menu.index');
+
+    // hitung total (+ pajak 10%)
+    [$subtotal, $tax, $total] = $this->calcTotals($cart);
+
+    // order code simulasi
+    $orderCode = session('order_code');
+    if (!$orderCode) {
+        $orderCode = '#SJ-' . rand(10000, 99999);
+        session(['order_code' => $orderCode]);
+    }
+
+    // countdown 15 menit (kalau sudah lewat, reset lagi)
+    $deadlineAt = session('transfer_deadline_at');
+    $nowTs = now()->timestamp;
+
+    if (!$deadlineAt || (int)$deadlineAt <= $nowTs) {
+        $deadlineAt = now()->addMinutes(15)->timestamp;
+        session(['transfer_deadline_at' => $deadlineAt]);
+    }
+
+    $deadlineSeconds = max(0, (int)$deadlineAt - $nowTs);
+
+    // metode transfer yang ditampilkan
+    $methods = [
+        [
+            'key'    => 'bca',
+            'name'   => 'BCA Transfer',
+            'number' => '1234567890',
+            'holder' => 'Bakmie Sijeuni',
+            'logo'   => 'bca.jpg',
+        ],
+        [
+            'key'    => 'mandiri',
+            'name'   => 'Mandiri Transfer',
+            'number' => '0987654321',
+            'holder' => 'Bakmie Sijeuni',
+            'logo'   => 'mandiri.jpg',
+        ],
+        [
+            'key'    => 'dana',
+            'name'   => 'DANA (E-Wallet)',
+            'number' => '081234567890',
+            'holder' => 'Bakmie Sijeuni',
+            'logo'   => 'dana.jpg',
+        ],
+    ];
+
+    $selected = session('transfer_selected', 'bca');
+
+    return view('customer.payment_transfer', compact(
+        'total',
+        'orderCode',
+        'deadlineSeconds',
+        'methods',
+        'selected'
+    ));
+}
+
+public function transferConfirm(Request $request)
+{
+    $method = $request->input('method', 'bca');
+    session(['transfer_selected' => $method]);
+
+    // status bayar
+    session(['payment_status' => 'paid']);
+
+    session()->forget('cart');
+    session()->forget('payment_method');
+    session()->forget('transfer_deadline_at');
+
+    return redirect()->route('thankyou.show')
+        ->with('success', 'Pembayaran berhasil dikonfirmasi.');
+}
+
+    // =========================
+    // CASH PAGE
+    // =========================
+    public function cash()
+    {
+        $cart = session('cart', []);
+        if (empty($cart)) return redirect()->route('menu.index');
+
+        [$subtotal, $tax, $total] = $this->calcTotals($cart);
+
+        $tableNo = session('table_no'); // integer
+        if (!$tableNo) return redirect()->route('tables.index');
+
+        $orderCode = session('order_code');
+        if (!$orderCode) {
+            $orderCode = '#SJ-' . rand(10000, 99999);
+            session(['order_code' => $orderCode]);
+        }
+
+        $barcodeText = 'SJ-' . (string)rand(10000, 99999) . '-' . $tableNo . '-CASH';
+        session(['cash_barcode' => session('cash_barcode', $barcodeText)]);
+
+        // status cash (untuk badge “menunggu kasir”)
+        $status = session('payment_status', 'waiting_cashier');
+
+        return view('customer.payment_cash', [
+            'cart'        => $cart,
+            'subtotal'    => $subtotal,
+            'tax'         => $tax,
+            'total'       => $total,'tableNo'     => $tableNo,
+            'orderCode'   => $orderCode,
+            'barcodeText' => session('cash_barcode'),
+            'status'      => $status,
         ]);
+    }
 
-        $cart = $request->session()->get('cart', []);
-        if (empty($cart)) {
-            return redirect()->route('cart.show')->with('error', 'Keranjang kosong.');
-        }
+  public function cashDone()
+{
+    session(['payment_status' => 'paid']);
 
-        $tableNo = $request->session()->get('table_no'); // <<<<< ganti kalau session kamu beda (misal 'meja')
-        $metode = $request->input('metode');
+    // ✅ kosongkan cart & reset pilihan bayar
+    session()->forget('cart');
+    session()->forget('payment_method');
 
-        // hitung total
+    return redirect()->route('thankyou.show');
+}
+
+    // =========================
+    // HELPER
+    // =========================
+    private function calcTotals(array $cart): array
+    {
         $subtotal = 0;
-        foreach ($cart as $item) {
-            $subtotal += ((int)$item['price']) * ((int)$item['qty']);
+        foreach ($cart as $row) {
+            $qty = (int)($row['qty'] ?? 0);
+            $price = (int)($row['price'] ?? 0);
+            $subtotal += $qty * $price;
         }
+
         $tax = (int) round($subtotal * 0.10);
         $total = $subtotal + $tax;
 
-        $order = DB::transaction(function () use ($tableNo, $metode, $subtotal, $tax, $total, $cart) {
-            // buat order dulu
-            $o = Order::create([
-                'order_code'     => 'TEMP', // nanti diupdate setelah dapat id
-                'table_no'       => $tableNo,
-                'subtotal'       => $subtotal,
-                'tax'            => $tax,
-                'total'          => $total,
-                'payment_method' => $metode,
-                'status'         => $metode === 'cash' ? 'waiting_cashier' : 'pending',
-            ]);
-
-            // order_code otomatis dari id
-            $o->order_code = 'SJN-' . str_pad((string)$o->id, 6, '0', STR_PAD_LEFT);
-            $o->save();
-
-            // simpan items
-            foreach ($cart as $item) {
-                $price = (int)$item['price'];
-                $qty   = (int)$item['qty'];
-
-                OrderItem::create([
-                    'order_id'    => $o->id,
-                    'name'        => $item['name'],
-                    'price'       => $price,
-                    'qty'         => $qty,
-                    'line_total'  => $price * $qty,
-                ]);
-            }
-
-            return $o;
-        });
-
-        // optional: kosongkan cart biar tidak double order
-        $request->session()->forget('cart');
-
-        return redirect()->route('pembayaran.lanjut', $order->id);
+        return [$subtotal, $tax, $total];
     }
 
-    // Router lanjutan: kalau transfer -> halaman transfer, kalau cash -> receipt cash
-    public function lanjut(Order $order)
-    {
-        if ($order->payment_method === 'cash') {
-            return redirect()->route('pembayaran.cash', $order->id);
-        }
-        return redirect()->route('pembayaran.transfer', $order->id);
-    }
-
-    // Halaman transfer
-    public function transfer(Order $order)
-    {
-        $order->load('items');
-
-        // dummy metode transfer (contoh seperti UI kamu)
-        $methods = [
-            ['name' => 'BCA Transfer', 'number' => '1234567890', 'label' => 'a/n Sijeuni Resto'],
-            ['name' => 'Mandiri Transfer', 'number' => '0987654321', 'label' => 'a/n Sijeuni Resto'],
-            ['name' => 'DANA (E-Wallet)', 'number' => '081234567890', 'label' => 'a/n Sijeuni Resto'],
-        ];
-
-        return view('customer.payment_transfer', compact('order', 'methods'));
-    }
-
-    // Tombol "Saya Sudah Bayar" (transfer)
-    public function transferConfirm(Order $order)
-    {// kalau kamu mau auto paid:
-        $order->status = 'paid';
-        $order->save();
-
-        return redirect()->route('pembayaran.transfer', $order->id)
-            ->with('success', 'Pembayaran berhasil dikonfirmasi.');
-    }
-
-    // Halaman struk cash
-    public function cash(Order $order)
-    {
-        $order->load('items');
-        return view('customer.payment_cash_receipt', compact('order'));
-    }
-
-    // Tombol "Selesai" cash (anggap selesai)
-    public function cashDone(Order $order)
-    {
-        $order->status = 'waiting_cashier';
-        $order->save();
-
-        return redirect()->route('pembayaran.cash', $order->id);
-    }
 }

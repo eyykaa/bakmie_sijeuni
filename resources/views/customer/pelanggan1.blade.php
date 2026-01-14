@@ -73,10 +73,10 @@
 
       <div class="food-card mb-3">
         <!-- Kamu boleh ganti gambar ini -->
-        <img src="{{ asset('images/tampilan1.jpg') }}" alt="Ramen">
+        <img src="{{ asset('images/mie1.jpg') }}" alt="Ramen">
         <div class="food-overlay">
           <small>Menu Rekomendasi</small>
-          <div class="food-name">Special Bakmie Cinta</div>
+          <div class="food-name">Mie Cinta</div>
         </div>
       </div>
 
@@ -85,10 +85,6 @@
           <i class="bi bi-bag-check me-2"></i> Pesan Menu Sekarang
         </a>
         
-
-        <a href="{{ url('/status-pesanan') }}" class="btn btn-outline-brand">
-          <i class="bi bi-receipt me-2"></i> Lihat Status Pesanan
-        </a>
       </div>
 
       <div class="row g-3 mt-3">

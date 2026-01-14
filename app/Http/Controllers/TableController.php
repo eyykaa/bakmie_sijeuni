@@ -9,7 +9,6 @@ class TableController extends Controller
     // halaman pilih meja
     public function index()
     {
-        // daftar meja (ubah kalau kamu mau lebih banyak)
         $tables = range(1, 10);
 
         // ambil meja dari session, default 1
@@ -25,7 +24,12 @@ class TableController extends Controller
             'table_no' => 'required|integer|min:1|max:100',
         ]);
 
-        session(['table_no' => (int)$request->table_no]);
+        $no = (int) $request->table_no;
+
+        // ✅ KEY UTAMA
+        session()->put('table_no', $no);
+
+        session()->put('meja', 'MEJA ' . $no);
 
         return redirect()->route('menu.index');
     }

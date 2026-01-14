@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('back_url', route('home')) 
+@section('back_url', route('home'))
 @section('page_title', 'Pilih Nomor Meja')
 
 @section('content')
@@ -12,13 +12,12 @@
     <form method="POST" action="{{ route('tables.store') }}" id="tableForm">
       @csrf
 
-      {{-- simpan meja terpilih ke session --}}
       <input type="hidden" name="table_no" id="tableInput" value="{{ old('table_no', $selected ?? 1) }}">
 
       <div class="table-grid" id="tableGrid">
         @foreach(($tables ?? []) as $t)
           <button type="button"
-            class="table-item {{ (int)($selected ?? 1) === (int)$t ? 'active' : '' }}"
+            class="table-item {{ (int)old('table_no', $selected ?? 1) === (int)$t ? 'active' : '' }}"
             data-table="{{ $t }}">
             {{ $t }}
           </button>
@@ -48,11 +47,9 @@
       const btn = e.target.closest('.table-item');
       if (!btn) return;
 
-      // set active
       grid.querySelectorAll('.table-item').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
-      // set value
       const val = btn.getAttribute('data-table');
       input.value = val;
       picked.textContent = val;

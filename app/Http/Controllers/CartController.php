@@ -10,56 +10,112 @@ class CartController extends Controller
     {
         $cart = session('cart', []);
 
-        // meja dari session: contoh "MEJA 8"
-        $tableText = session('meja', 'MEJA ?');
-        $tableNo = (int) preg_replace('/\D+/', '', $tableText);
-
-        $items = [];
+        $count = 0;
         $subtotal = 0;
 
-        foreach ($cart as $key => $row) {
-            $qty   = (int) ($row['qty'] ?? 1);
-            $price = (int) ($row['price'] ?? 0);
+        foreach ($cart as $row) {
+            $qty = (int)($row['qty'] ?? 0);
+            $price = (int)($row['price'] ?? 0);
 
-            $lineSubtotal = $price * $qty;
-            $subtotal += $lineSubtotal;
-
-            $items[] = [
-                'key' => $key, // ini penting buat hapus
-                'name' => $row['name'] ?? '-',
-                'price' => $price,
-                'qty' => $qty,
-                'note' => $row['note'] ?? null,
-                'image' => $row['image'] ?? null,
-                'line_subtotal' => $lineSubtotal,
-            ];
+            $count += $qty;
+            $subtotal += $qty * $price;
         }
 
         $tax = (int) round($subtotal * 0.10);
         $total = $subtotal + $tax;
-        $count = collect($items)->sum('qty');
+
+        $tableNo = session('table_no');  
+        $mejaText = session('meja');    
+
+        $tableNoFinal = $tableNo;
+
+        if (!$tableNoFinal && $mejaText) {
+            if (preg_match('/\d+/', $mejaText, $m)) {
+                $tableNoFinal = (int) $m[0];
+            }
+        }
 
         return view('customer.order_detail', compact(
-            'items',
-            'subtotal',
-            'tax',
-            'total',
-            'count',
-            'tableText',
-            'tableNo'
+            'cart','count','subtotal','tax','total',
+            'tableNoFinal'
         ));
+    }
+
+    public function add(Request $request)
+    {
+        $data = $request->validate([
+            'id'    => 'required',
+            'name'  => 'required|string',
+            'price' => 'required|integer|min:0',
+            'image' => 'nullable|string',
+            'note'  => 'nullable|string|max:255',
+            'qty'   => 'required|integer|min:1|max:99',
+        ]);
+
+        $cart = session('cart', []);
+        $id = (string) $data['id'];
+
+        if (isset($cart[$id])) {
+            $cart[$id]['qty'] = (int)$cart[$id]['qty'] + (int)$data['qty'];
+
+            $newNote = trim((string)($data['note'] ?? ''));
+            if ($newNote !== '') {
+                $cart[$id]['note'] = $newNote;
+            }
+        } else {
+            $cart[$id] = [
+                'id'    => $id,
+                'name'  => $data['name'],
+                'price' => (int)$data['price'],
+                'image' => $data['image'] ?? null,
+                'note'  => trim((string)($data['note'] ?? '')),
+                'qty'   => (int)$data['qty'],
+            ];
+        }
+
+        session(['cart' => $cart]);
+
+        return redirect()->back()->with('success', 'Item ditambahkan ke pesanan.');
+    }
+
+    public function update(Request $request)
+    {
+        $data = $request->validate([
+            'id'  => 'required',
+            'qty' => 'required|integer|min:1|max:99',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $cart = session('cart', []);
+        $id = (string) $data['id'];
+
+        if (isset($cart[$id])) {
+            $cart[$id]['qty'] = (int) $data['qty'];
+            $cart[$id]['note'] = trim((string)($data['note'] ?? ''));
+            session(['cart' => $cart]);
+        }
+
+        return redirect()->back();
     }
 
     public function remove(Request $request)
     {
-        $key = $request->input('key'); // sesuai hidden input di blade
+        $data = $request->validate(['id' => 'required']);
 
         $cart = session('cart', []);
-        if (isset($cart[$key])) {
-            unset($cart[$key]);
+        $id = (string) $data['id'];
+
+        if (isset($cart[$id])) {
+            unset($cart[$id]);
             session(['cart' => $cart]);
         }
 
-        return redirect()->route('cart.show')->with('success', 'Item berhasil dihapus.');
+        return redirect()->back()->with('success', 'Item berhasil dihapus.');
+    }
+
+    public function clear()
+    {
+        session()->forget('cart');
+        return redirect()->back()->with('success', 'Pesanan dikosongkan.');
     }
 }

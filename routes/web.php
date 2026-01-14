@@ -5,6 +5,7 @@ use App\Http\Controllers\TableController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ThankYouController;
 
 Route::get('/', function () {
     return view('customer.pelanggan1', ['title' => 'Sijeuni - Dashboard']);
@@ -13,10 +14,6 @@ Route::get('/', function () {
 // Pilih meja
 Route::get('/pilih-meja', [TableController::class, 'index'])->name('tables.index');
 Route::post('/pilih-meja', [TableController::class, 'store'])->name('tables.store');
-Route::get('/meja/pilih/{no}', function($no){
-    session(['meja' => 'MEJA ' . $no]);
-    return redirect()->route('menu.index');
-})->name('meja.pilih');
 
 // Menu
 Route::get('/menu/{category?}', [MenuController::class, 'index'])->name('menu.index');
@@ -42,3 +39,7 @@ Route::post('/pembayaran/transfer/confirm', [PaymentController::class, 'transfer
 // CASH
 Route::get('/pembayaran/cash', [PaymentController::class, 'cash'])->name('pembayaran.cash');
 Route::post('/pembayaran/cash/done', [PaymentController::class, 'cashDone'])->name('pembayaran.cash.done');
+
+// Selesai
+Route::get('/thankyou', [ThankYouController::class, 'show'])->name('thankyou.show');
+Route::post('/thankyou/done', [ThankYouController::class, 'done'])->name('thankyou.done');
