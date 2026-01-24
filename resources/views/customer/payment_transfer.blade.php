@@ -88,9 +88,10 @@
     </div>
 
     {{-- CTA --}}
-    <button type="submit" class="transfer-pay-btn">
-      Saya Sudah Bayar <span>→</span>
-    </button>
+    <button type="submit" class="transfer-pay-btn"
+  onclick="this.disabled=true; this.innerText='Memproses...'; this.form.submit();">
+  Saya Sudah Bayar <span>→</span>
+</button>
 
   </form>
 </div>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\DiningTable;
 
 class TableController extends Controller
 {
@@ -15,6 +16,7 @@ class TableController extends Controller
         $selected = session('table_no', 1);
 
         return view('customer.select_table', compact('tables', 'selected'));
+        
     }
 
     // simpan meja terpilih

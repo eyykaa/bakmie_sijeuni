@@ -100,14 +100,15 @@
     </div>
 
     {{-- BUTTON --}}
-    <div class="cash-finish">
-      <form method="POST" action="{{ route('pembayaran.cash.done') }}">
-        @csrf
-        <button type="submit" class="cash-finish-btn">Saya sudah bayar ke kasir</button>
-      </form>
-    </div>
-
-  </div>
+   <div class="cash-finish">
+  <form method="POST" action="{{ route('pembayaran.cash.done') }}">
+    @csrf
+    <button type="submit" class="cash-finish-btn"
+      onclick="this.disabled=true; this.innerText='Memproses...'; this.form.submit();">
+      Saya Sudah Bayar di Kasir
+    </button>
+  </form>
+</div>
 
   <div class="cash-note">
     <span>Silakan tunjukkan struk ini ke kasir untuk melakukan pembayaran.</span>

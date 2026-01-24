@@ -8,13 +8,11 @@ class ThankYouController extends Controller
 {
     public function show()
     {
-        $orderCode = session('order_code', '#SJ-????');
-        $tableNo = session('table') ?? session('table_no') ?? '-';
 
         $title = 'Terima kasih! Pembayaran berhasil';
         $subtitle = 'Pesananmu sedang diproses. Mohon tunggu ya 😊';
 
-        return view('customer.thankyou', compact('orderCode', 'tableNo', 'title', 'subtitle'));
+        return view('customer.thankyou', compact('title', 'subtitle'));
     }
 
     public function done()
